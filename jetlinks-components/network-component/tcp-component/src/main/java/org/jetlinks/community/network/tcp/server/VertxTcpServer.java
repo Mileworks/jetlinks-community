@@ -7,10 +7,16 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.community.network.DefaultNetworkType;
 import org.jetlinks.community.network.NetworkType;
+import org.jetlinks.community.network.tcp.client.TcpClient;
 import org.jetlinks.community.network.tcp.client.VertxTcpClient;
 import org.jetlinks.community.network.tcp.parser.PayloadParser;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -18,10 +24,9 @@ import java.util.function.Supplier;
  * @since 1.0
  **/
 @Slf4j
-public class VertxTcpServer extends AbstractTcpServer implements TcpServer {
+public class VertxTcpServer implements TcpServer {
 
-    @Getter
-    volatile NetServer server;
+    Collection<NetServer> tcpServers;
 
     private Supplier<PayloadParser> parserSupplier;
 
@@ -29,10 +34,20 @@ public class VertxTcpServer extends AbstractTcpServer implements TcpServer {
     private long keepAliveTimeout = Duration.ofMinutes(10).toMillis();
 
     @Getter
-    private String id;
+    private final String id;
+
+    private final EmitterProcessor<TcpClient> processor = EmitterProcessor.create(false);
+
+    private final FluxSink<TcpClient> sink = processor.sink(FluxSink.OverflowStrategy.BUFFER);
 
     public VertxTcpServer(String id) {
         this.id = id;
+    }
+
+    @Override
+    public Flux<TcpClient> handleConnection() {
+        return processor
+            .map(Function.identity());
     }
 
     private void execute(Runnable runnable) {
@@ -47,27 +62,37 @@ public class VertxTcpServer extends AbstractTcpServer implements TcpServer {
         this.parserSupplier = parserSupplier;
     }
 
-    public void setServer(NetServer server) {
-        if (this.server != null && this.server != server) {
-            this.server.close();
+    public void setServer(Collection<NetServer> servers) {
+        if (this.tcpServers != null && !this.tcpServers.isEmpty()) {
+            shutdown();
         }
-        this.server = server;
-        this.server.connectHandler(this::acceptTcpConnection);
+        this.tcpServers = servers;
+
+        for (NetServer tcpServer : this.tcpServers) {
+            tcpServer.connectHandler(this::acceptTcpConnection);
+        }
+
     }
 
+
     protected void acceptTcpConnection(NetSocket socket) {
-        VertxTcpClient client = new VertxTcpClient(id + "_" + socket.remoteAddress());
-        client.setKeepAliveTimeout(keepAliveTimeout);
+        if (!processor.hasDownstreams()) {
+            log.warn("not handler for tcp client[{}]", socket.remoteAddress());
+            socket.close();
+            return;
+        }
+        VertxTcpClient client = new VertxTcpClient(id + "_" + socket.remoteAddress(), true);
+        client.setKeepAliveTimeoutMs(keepAliveTimeout);
         try {
             socket.exceptionHandler(err -> {
                 log.error("tcp server client [{}] error", socket.remoteAddress(), err);
             }).closeHandler((nil) -> {
-                log.info("tcp server client [{}] closed", socket.remoteAddress());
+                log.debug("tcp server client [{}] closed", socket.remoteAddress());
                 client.shutdown();
             });
             client.setRecordParser(parserSupplier.get());
             client.setSocket(socket);
-            received(client);
+            sink.next(client);
             log.debug("accept tcp client [{}] connection", socket.remoteAddress());
         } catch (Exception e) {
             log.error("create tcp server client error", e);
@@ -82,15 +107,17 @@ public class VertxTcpServer extends AbstractTcpServer implements TcpServer {
 
     @Override
     public void shutdown() {
-        if (null != server) {
-            execute(server::close);
-            server = null;
+        if (null != tcpServers) {
+            for (NetServer tcpServer : tcpServers) {
+                execute(tcpServer::close);
+            }
+            tcpServers = null;
         }
     }
 
     @Override
     public boolean isAlive() {
-        return server != null;
+        return tcpServers != null;
     }
 
     @Override

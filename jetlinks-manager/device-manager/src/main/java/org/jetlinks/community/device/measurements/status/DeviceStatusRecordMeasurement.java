@@ -7,6 +7,7 @@ import org.jetlinks.core.metadata.types.DateTimeType;
 import org.jetlinks.core.metadata.types.EnumType;
 import org.jetlinks.core.metadata.types.IntType;
 import org.jetlinks.core.metadata.types.StringType;
+import org.jetlinks.community.Interval;
 import org.jetlinks.community.dashboard.*;
 import org.jetlinks.community.dashboard.supports.StaticMeasurement;
 import org.jetlinks.community.device.entity.DeviceInstanceEntity;
@@ -15,10 +16,12 @@ import org.jetlinks.community.device.service.LocalDeviceInstanceService;
 import org.jetlinks.community.device.timeseries.DeviceTimeSeriesMetric;
 import org.jetlinks.community.timeseries.TimeSeriesManager;
 import org.jetlinks.community.timeseries.query.AggregationQueryParam;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
@@ -75,22 +78,36 @@ class DeviceStatusRecordMeasurement
 
         @Override
         public Flux<SimpleMeasurementValue> getValue(MeasurementParameter parameter) {
-            return AggregationQueryParam.of()
+            String format = parameter.getString("format").orElse("yyyy年MM月dd日");
+            DateTimeFormatter formatter = DateTimeFormat.forPattern(format);
+
+            return AggregationQueryParam
+                .of()
                 .max("value")
                 .filter(query ->
-                    query.where("name", "online-count")
-                        .is("productId", parameter.getString("productId").orElse(null))
+                            query.where("name", "gateway-server-session")
                 )
-                .from(parameter.getDate("from").orElse(Date.from(LocalDateTime.now().plusDays(-30).atZone(ZoneId.systemDefault()).toInstant())))
+                .from(parameter
+                          .getDate("from")
+                          .orElse(Date.from(LocalDateTime
+                                                .now()
+                                                .plusDays(-30)
+                                                .atZone(ZoneId.systemDefault())
+                                                .toInstant())))
                 .to(parameter.getDate("to").orElse(new Date()))
-                .groupBy(parameter.getDuration("time").orElse(Duration.ofDays(1)),
-                    parameter.getString("format").orElse("yyyy年MM月dd日"))
+                .groupBy(parameter.getInterval("time").orElse(Interval.ofDays(1)),
+                         parameter.getString("format").orElse("yyyy年MM月dd日"))
                 .limit(parameter.getInt("limit").orElse(10))
                 .execute(timeSeriesManager.getService(DeviceTimeSeriesMetric.deviceMetrics())::aggregation)
-                .index((index, data) -> SimpleMeasurementValue.of(
-                    data.getInt("value").orElse(0),
-                    data.getString("time").orElse("-"),
-                    index))
+                .map(data -> {
+                    long ts = data.getString("time")
+                                  .map(time -> DateTime.parse(time, formatter).getMillis())
+                                  .orElse(System.currentTimeMillis());
+                    return SimpleMeasurementValue.of(
+                        data.get("value").orElse(0),
+                        data.getString("time", ""),
+                        ts);
+                })
                 .sort();
         }
     }

@@ -1,5 +1,8 @@
 package org.jetlinks.community.device.measurements.status;
 
+import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.event.Subscription;
+import org.jetlinks.core.message.DeviceMessage;
 import org.jetlinks.core.message.MessageType;
 import org.jetlinks.core.metadata.ConfigMetadata;
 import org.jetlinks.core.metadata.DataType;
@@ -8,28 +11,29 @@ import org.jetlinks.core.metadata.types.DateTimeType;
 import org.jetlinks.core.metadata.types.EnumType;
 import org.jetlinks.core.metadata.types.IntType;
 import org.jetlinks.core.metadata.types.StringType;
+import org.jetlinks.community.Interval;
 import org.jetlinks.community.dashboard.*;
 import org.jetlinks.community.dashboard.supports.StaticMeasurement;
-import org.jetlinks.community.device.message.DeviceMessageUtils;
 import org.jetlinks.community.device.timeseries.DeviceTimeSeriesMetric;
-import org.jetlinks.community.gateway.MessageGateway;
-import org.jetlinks.community.gateway.Subscription;
 import org.jetlinks.community.timeseries.TimeSeriesManager;
 import org.jetlinks.community.timeseries.query.AggregationQueryParam;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 class DeviceStatusChangeMeasurement extends StaticMeasurement {
 
-    public MessageGateway messageGateway;
+    private final EventBus eventBus;
 
-    private TimeSeriesManager timeSeriesManager;
+    private final TimeSeriesManager timeSeriesManager;
 
     static MeasurementDefinition definition = MeasurementDefinition.of("change", "设备状态变更");
 
@@ -40,9 +44,9 @@ class DeviceStatusChangeMeasurement extends StaticMeasurement {
         .addElement(EnumType.Element.of(MessageType.OFFLINE.name().toLowerCase(), "离线"))
         .addElement(EnumType.Element.of(MessageType.ONLINE.name().toLowerCase(), "在线"));
 
-    public DeviceStatusChangeMeasurement(TimeSeriesManager timeSeriesManager, MessageGateway messageGateway) {
+    public DeviceStatusChangeMeasurement(TimeSeriesManager timeSeriesManager, EventBus eventBus) {
         super(definition);
-        this.messageGateway = messageGateway;
+        this.eventBus = eventBus;
         this.timeSeriesManager = timeSeriesManager;
         addDimension(new RealTimeDeviceStateDimension());
         addDimension(new CountDeviceStateDimension());
@@ -87,12 +91,12 @@ class DeviceStatusChangeMeasurement extends StaticMeasurement {
 
         @Override
         public Flux<SimpleMeasurementValue> getValue(MeasurementParameter parameter) {
+            String format = parameter.getString("format").orElse("yyyy年MM月dd日");
+            DateTimeFormatter formatter = DateTimeFormat.forPattern(format);
 
             return AggregationQueryParam.of()
                 .sum("count")
-                .groupBy(parameter.getDuration("time").orElse(Duration.ofHours(1)),
-                    "time",
-                    parameter.getString("format").orElse("MM月dd日 HH时"))
+                .groupBy(parameter.getInterval("time", Interval.ofDays(1)), format)
                 .filter(query ->
                     query.where("name", parameter.getString("type").orElse("online"))
                         .is("productId", parameter.getString("productId").orElse(null))
@@ -101,10 +105,15 @@ class DeviceStatusChangeMeasurement extends StaticMeasurement {
                 .from(parameter.getDate("from").orElse(Date.from(LocalDateTime.now().plusDays(-1).atZone(ZoneId.systemDefault()).toInstant())))
                 .to(parameter.getDate("to").orElse(new Date()))
                 .execute(timeSeriesManager.getService(DeviceTimeSeriesMetric.deviceMetrics())::aggregation)
-                .index((index, data) -> SimpleMeasurementValue.of(
-                    data.getInt("count").orElse(0),
-                    data.getString("time").orElse(""),
-                    index))
+                .map(data -> {
+                    long ts = data.getString("time")
+                        .map(time -> DateTime.parse(time, formatter).getMillis())
+                        .orElse(System.currentTimeMillis());
+                    return SimpleMeasurementValue.of(
+                        data.get("count").orElse(0),
+                        data.getString("time", ""),
+                        ts);
+                })
                 .sort();
         }
     }
@@ -124,7 +133,6 @@ class DeviceStatusChangeMeasurement extends StaticMeasurement {
             return type;
         }
 
-
         @Override
         public ConfigMetadata getParams() {
             return configMetadata;
@@ -137,18 +145,27 @@ class DeviceStatusChangeMeasurement extends StaticMeasurement {
 
         @Override
         public Flux<MeasurementValue> getValue(MeasurementParameter parameter) {
-            return Mono.justOrEmpty(parameter.getString("deviceId"))
-                .flatMapMany(deviceId -> {
-                    //从消息网关订阅消息
-                    return messageGateway
-                        .subscribe(Arrays.asList(
-                            new Subscription("/device/" + deviceId + "/online"),
-                            new Subscription("/device/" + deviceId + "/offline")), true)
-                        .flatMap(val -> Mono.justOrEmpty(DeviceMessageUtils.convert(val)))
-                        .map(msg -> SimpleMeasurementValue.of(msg.getMessageType().name().toLowerCase(), msg.getTimestamp()))
-                        ;
-                });
 
+
+            return Mono.justOrEmpty(parameter.getString("deviceId"))
+                .flatMapMany(deviceId ->//从消息网关订阅消息
+                    eventBus.subscribe(Subscription.of(
+                        "RealTimeDeviceStateDimension"
+                        , new String[]{
+                            "/device/*/" + deviceId + "/online",
+                            "/device/*/" + deviceId + "/offline"
+                        },
+                        Subscription.Feature.local,
+                        Subscription.Feature.broker
+                    ), DeviceMessage.class)
+                        .map(msg -> SimpleMeasurementValue.of(createStateValue(msg), msg.getTimestamp())));
+        }
+
+        Map<String, Object> createStateValue(DeviceMessage message) {
+            Map<String, Object> val = new HashMap<>();
+            val.put("type", message.getMessageType().name().toLowerCase());
+            val.put("deviceId", message.getDeviceId());
+            return val;
         }
     }
 }

@@ -2,35 +2,39 @@ package org.jetlinks.community.network.tcp.parser.strateies;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.parsetools.RecordParser;
+import org.jetlinks.community.ValueObject;
 import org.jetlinks.core.Values;
 import org.jetlinks.community.network.tcp.parser.PayloadParser;
 import org.jetlinks.community.network.tcp.parser.PayloadParserBuilderStrategy;
 import org.jetlinks.community.network.tcp.parser.PayloadParserType;
 import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public abstract class VertxPayloadParserBuilder implements PayloadParserBuilderStrategy {
     @Override
     public abstract PayloadParserType getType();
 
-    protected abstract RecordParser createParser(Values config);
+    protected abstract RecordParser createParser(ValueObject config);
 
     @Override
-    public PayloadParser build(Values config) {
-        return new RecordPayloadParser(createParser(config));
+    public PayloadParser build(ValueObject config) {
+        return new RecordPayloadParser(() -> createParser(config));
     }
 
-    class RecordPayloadParser implements PayloadParser {
-        RecordParser recordParser;
-        EmitterProcessor<Buffer> processor = EmitterProcessor.create(false);
+    static class RecordPayloadParser implements PayloadParser {
+        private final Supplier<RecordParser> recordParserSupplier;
+        private final EmitterProcessor<Buffer> processor = EmitterProcessor.create(false);
+        private final FluxSink<Buffer> sink = processor.sink(FluxSink.OverflowStrategy.BUFFER);
 
-        public RecordPayloadParser(RecordParser recordParser) {
-            this.recordParser = recordParser;
-            this.recordParser.handler(buffer -> {
-                processor.onNext(buffer);
-            });
+        private RecordParser recordParser;
+
+        public RecordPayloadParser(Supplier<RecordParser> recordParserSupplier) {
+            this.recordParserSupplier = recordParserSupplier;
+            reset();
         }
 
         @Override
@@ -47,7 +51,12 @@ public abstract class VertxPayloadParserBuilder implements PayloadParserBuilderS
         public void close() {
             processor.onComplete();
         }
-    }
 
+        @Override
+        public void reset() {
+            this.recordParser = recordParserSupplier.get();
+            this.recordParser.handler(sink::next);
+        }
+    }
 
 }

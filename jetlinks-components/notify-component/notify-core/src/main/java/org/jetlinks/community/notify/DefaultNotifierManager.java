@@ -1,6 +1,7 @@
 package org.jetlinks.community.notify;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.core.event.EventBus;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.stereotype.Component;
@@ -21,8 +22,11 @@ public class DefaultNotifierManager implements NotifierManager, BeanPostProcesso
 
     private NotifyConfigManager configManager;
 
-    public DefaultNotifierManager(NotifyConfigManager manager) {
+    private EventBus eventBus;
+
+    public DefaultNotifierManager(NotifyConfigManager manager, EventBus eventBus) {
         this.configManager = manager;
+        this.eventBus = eventBus;
     }
 
     protected Mono<NotifierProperties> getProperties(NotifyType notifyType,
@@ -31,7 +35,6 @@ public class DefaultNotifierManager implements NotifierManager, BeanPostProcesso
     }
 
     public Mono<Void> reload(String id) {
-        // TODO: 2019/12/20 集群支持
         return Mono.justOrEmpty(notifiers.remove(id))
             .flatMap(Notifier::close);
     }
@@ -42,9 +45,10 @@ public class DefaultNotifierManager implements NotifierManager, BeanPostProcesso
             .flatMap(map -> Mono.justOrEmpty(map.get(properties.getProvider())))
             .switchIfEmpty(Mono.error(new UnsupportedOperationException("不支持的服务商:" + properties.getProvider())))
             .flatMap(notifierProvider -> notifierProvider.createNotifier(properties))
+            //转成代理,把通知事件发送到消息网关中.
+            .map(notifier -> new NotifierEventDispatcher<>(eventBus, notifier))
             .flatMap(notifier -> Mono.justOrEmpty(notifiers.put(properties.getId(), notifier))
                 .flatMap(Notifier::close)//如果存在旧的通知器则关掉之
-                .onErrorContinue((err, obj) -> log.error(err.getMessage(), err))//忽略异常
                 .thenReturn(notifier));
     }
 

@@ -1,34 +1,51 @@
 # JetLinks 物联网基础平台
 
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/jetlinks/jetlinks-community/Auto%20Deploy%20Docker?label=docker)
-![Version](https://img.shields.io/badge/Version-1.0--SNAPSHOT-brightgreen)
-![QQ群](https://img.shields.io/badge/QQ群-2021514-brightgreen)
+![Version](https://img.shields.io/badge/version-1.8--RELEASE-brightgreen)
+[![QQ①群2021514](https://img.shields.io/badge/QQ①群-2021514-brightgreen)](https://qm.qq.com/cgi-bin/qm/qr?k=LGf0OPQqvLGdJIZST3VTcypdVWhdfAOG&jump_from=webapi)
+[![QQ②群324606263](https://img.shields.io/badge/QQ②群-324606263-brightgreen)](https://qm.qq.com/cgi-bin/qm/qr?k=IMas2cH-TNsYxUcY8lRbsXqPnA2sGHYQ&jump_from=webapi)
+![jetlinks](https://visitor-badge.glitch.me/badge?page_id=jetlinks)
 
-JetLinks 是一个物联网基础平台,用于快速建立物联网相关业务系统.
+JetLinks 基于Java8,Spring Boot 2.x,WebFlux,Netty,Vert.x,Reactor等开发, 
+是一个开箱即用,可二次开发的企业级物联网基础平台。平台实现了物联网相关的众多基础功能,
+能帮助你快速建立物联网相关业务系统。
+ 
 
-- 集成了各种常见的网络协议(MQTT,HTTP,TCP,UDP,CoAP)等,并对其进行封装,
-实现统一管理,监控,在线调试,在线启动,停止,更新等功能.降低网络编程的复杂度.
+## 核心特性
 
-- 灵活的设备接入方式. 动态配置设备网关服务.
+支持统一物模型管理,多种设备,多种厂家,统一管理。
 
-- 多消息协议支持,可在线配置消息解析规则,将自定义的消息解析为平台统一的消息格式.
+统一设备连接管理,多协议适配(TCP,MQTT,UDP,CoAP,HTTP等),屏蔽网络编程复杂性,灵活接入不同厂家不同协议的设备。
 
-- 统一的设备操作API,屏蔽各个厂家`不同协议`不同设备的差异,支持`跨服务`,同步(RRpc),异步的设备消息收发.
+灵活的规则引擎,设备告警,消息通知,数据转发.
 
-- 可视化拖拽规则引擎设计器,灵活可拓展的多种规则节点支持,可通过规则引擎在线动态配置数据,业务处理逻辑.
+强大的ReactorQL引擎,使用SQL来处理实时数据.
 
-# 技术栈
+地理位置:统一管理地理位置信息,支持区域搜索. 
 
-1. [Spring Boot 2.2.x](https://spring.io/projects/spring-boot)
+官方QQ: ①群 [2021514](https://qm.qq.com/cgi-bin/qm/qr?k=LGf0OPQqvLGdJIZST3VTcypdVWhdfAOG&jump_from=webapi)
+, ②群 [324606263](https://qm.qq.com/cgi-bin/qm/qr?k=IMas2cH-TNsYxUcY8lRbsXqPnA2sGHYQ&jump_from=webapi)
+
+## 技术栈
+
+1. [Spring Boot 2.3.x](https://spring.io/projects/spring-boot)
 2. [Spring WebFlux](https://spring.io/) 响应式Web支持
 3. [R2DBC](https://r2dbc.io/) 响应式关系型数据库驱动
 4. [Project Reactor](https://projectreactor.io/) 响应式编程框架
-4. [Netty](https://netty.io/),[Vert.x](https://vertx.io/) 高性能网络编程框架
+4. [Netty](https://netty.io/) ,[Vert.x](https://vertx.io/) 高性能网络编程框架
 5. [ElasticSearch](https://www.elastic.co/cn/products/enterprise-search) 全文检索，日志，时序数据存储
 6. [PostgreSQL](https://www.postgresql.org) 业务功能数据管理
 7. [hsweb framework 4](https://github.com/hs-web) 业务功能基础框架
 
-# 模块
+## 架构
+
+![platform](./platform.svg)
+
+## 设备接入流程
+
+![flow](./flow.svg)
+
+## 模块
 
 ```bash
 --jetlinks-community
@@ -36,40 +53,13 @@ JetLinks 是一个物联网基础平台,用于快速建立物联网相关业务�
 ------|------|----dev-env       # 启动开发环境
 ------|------|----run-all       # 启动全部,通过http://localhost:9000 访问系统.
 ------|----jetlinks-components  # 公共组件模块
-------|----jetlinks-manager     # 管理模块
-------|----jetlinks-standalone  # 单点方式启动服务
+------|----jetlinks-manager     # 业务管理模块
+------|----jetlinks-standalone  # 服务启动模块
 ------|----simulator            # 设备模拟器
 ```
 
-# 文档
+## 文档
 
 [快速开始](http://doc.jetlinks.cn/basics-guide/quick-start.html) 
 [开发文档](http://doc.jetlinks.cn/dev-guide/start.html) 
 [常见问题](http://doc.jetlinks.cn/common-problems/network-components.html) 
-
-# 许可版本
-
-|  功能  |  社区版   | 专业版  |   企业版  |
-| ----   |  ----  |   ----    |   -----   |
-| 开放源代码      |  ✅ | ✅ |       ✅     |
-| 设备管理,设备接入|  ✅ | ✅ |       ✅     |
-| 多消息协议支持|  ✅ | ✅ |       ✅     |
-| 规则引擎        |  ✅ |  ✅ |     ✅     |
-| 邮件消息通知    |  ✅  |  ✅ |     ✅      |
-| 微信企业消息    |  ✅  |  ✅ |     ✅      |
-| 钉钉消息通知    |  ✅  |  ✅ |     ✅      |
-| MQTT(TLS)    |  ✅  |  ✅ |   ✅   |
-| TCP(TLS)     |  ✅  |  ✅ |  ✅    |
-| CoAP(DTLS)    |  ⭕  |  ✅ |     ✅       |
-| Http,WebSocket(TLS) |  ⭕  |  ✅ |     ✅ |
-| 监控     |  ⭕  |  ✅ |  ✅   |
-| 可视化图表配置   |  ⭕  |  ✅ |     ✅    |
-| OpenAPI    |  ⭕  |  ✅ |     ✅     |
-| 集群支持    |  ⭕  |  ✅ |     ✅     |
-| 线上技术支持 |  ⭕  |  ✅ |   ✅   |
-| 线下技术支持 |  ⭕  |  ⭕ |   ✅   |
-| 定制开发   |  ⭕  |  ⭕ |   ✅   |
-| 商业限制   |  无  |  单个项目 |   无   |
-| 定价   |  免费  | 联系我们  |  联系我们   |
-
-⚠️:所有版本均不可发布为与JetLinks同类的产品进行二次销售.

@@ -21,6 +21,13 @@ class DeviceLogTimeSeriesMetadata implements TimeSeriesMetadata {
     }
 
     static {
+        {
+            SimplePropertyMetadata property = new SimplePropertyMetadata();
+            property.setId("id");
+            property.setValueType(new StringType());
+            property.setName("ID");
+            metadata.add(property);
+        }
 
         {
             SimplePropertyMetadata property = new SimplePropertyMetadata();
@@ -50,7 +57,7 @@ class DeviceLogTimeSeriesMetadata implements TimeSeriesMetadata {
             SimplePropertyMetadata property = new SimplePropertyMetadata();
             property.setId("productId");
             property.setValueType(new StringType());
-            property.setName("型号ID");
+            property.setName("产品ID");
             metadata.add(property);
         }
 
@@ -62,11 +69,26 @@ class DeviceLogTimeSeriesMetadata implements TimeSeriesMetadata {
             metadata.add(property);
         }
 
+
+        {
+            SimplePropertyMetadata property = new SimplePropertyMetadata();
+            property.setId("messageId");
+            property.setValueType(StringType.GLOBAL);
+            property.setName("消息ID");
+            metadata.add(property);
+        }
         {
             SimplePropertyMetadata property = new SimplePropertyMetadata();
             property.setId("createTime");
             property.setValueType(new DateTimeType());
             property.setName("创建事件");
+            metadata.add(property);
+        }
+        {
+            SimplePropertyMetadata property = new SimplePropertyMetadata();
+            property.setId("timestamp");
+            property.setValueType(DateTimeType.GLOBAL);
+            property.setName("数据时间");
             metadata.add(property);
         }
     }

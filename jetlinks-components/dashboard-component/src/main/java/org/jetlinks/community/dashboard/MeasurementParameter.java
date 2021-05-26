@@ -18,7 +18,11 @@ public class MeasurementParameter implements ValueObject {
     private Map<String, Object> params = new HashMap<>();
 
     public Optional<Object> get(String name) {
-        return Optional.ofNullable(params.get(name));
+        return Optional.ofNullable(params).map(p -> p.get(name));
     }
 
+    @Override
+    public Map<String, Object> values() {
+        return params;
+    }
 }

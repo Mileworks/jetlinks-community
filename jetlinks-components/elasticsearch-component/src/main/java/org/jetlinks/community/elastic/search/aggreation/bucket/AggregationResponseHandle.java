@@ -4,11 +4,7 @@ import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.bucket.histogram.Histogram;
 import org.elasticsearch.search.aggregations.bucket.range.Range;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.metrics.avg.Avg;
-import org.elasticsearch.search.aggregations.metrics.max.Max;
-import org.elasticsearch.search.aggregations.metrics.min.Min;
-import org.elasticsearch.search.aggregations.metrics.stats.Stats;
-import org.elasticsearch.search.aggregations.metrics.sum.Sum;
+import org.elasticsearch.search.aggregations.metrics.*;
 import org.jetlinks.community.elastic.search.aggreation.metrics.MetricsResponseSingleValue;
 
 import java.util.List;
@@ -97,9 +93,20 @@ public class AggregationResponseHandle {
             bucket.setSum(sum(a));
         } else if (a instanceof Stats) {
             stats(bucket, a);
+        }  else if (a instanceof ValueCount) {
+            bucket.setValueCount(count(a));
         } else {
             throw new UnsupportedOperationException("不支持的聚合类型");
         }
+    }
+
+    public static <A extends Aggregation> MetricsResponseSingleValue count(A a) {
+        ValueCount max = (ValueCount) a;
+        return MetricsResponseSingleValue.builder()
+            .value(max.getValue())
+            .name(a.getName())
+            .valueAsString(max.getValueAsString())
+            .build();
     }
 
     public static <A extends Aggregation> MetricsResponseSingleValue avg(A a) {

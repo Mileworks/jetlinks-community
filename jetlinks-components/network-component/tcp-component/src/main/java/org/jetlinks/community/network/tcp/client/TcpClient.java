@@ -2,10 +2,12 @@ package org.jetlinks.community.network.tcp.client;
 
 import org.jetlinks.community.network.Network;
 import org.jetlinks.community.network.tcp.TcpMessage;
+import org.jetlinks.core.server.ClientConnection;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 
 /**
  * TCP 客户端
@@ -13,7 +15,7 @@ import java.net.InetSocketAddress;
  * @author zhouhao
  * @version 1.0
  */
-public interface TcpClient extends Network {
+public interface TcpClient extends Network, ClientConnection {
 
     /**
      * 获取客户端远程地址
@@ -43,4 +45,15 @@ public interface TcpClient extends Network {
      */
     void keepAlive();
 
+    /**
+     * 设置客户端心跳超时时间
+     *
+     * @param timeout 超时时间
+     */
+    void setKeepAliveTimeout(Duration timeout);
+
+    /**
+     * 重置
+     */
+    void reset();
 }

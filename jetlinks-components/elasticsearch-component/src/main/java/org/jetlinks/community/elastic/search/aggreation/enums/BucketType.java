@@ -17,9 +17,9 @@ import org.jetlinks.community.elastic.search.aggreation.bucket.Bucket;
 import org.jetlinks.community.elastic.search.aggreation.bucket.BucketAggregationsStructure;
 import org.jetlinks.community.elastic.search.aggreation.bucket.Sort;
 import org.jetlinks.community.elastic.search.aggreation.metrics.MetricsAggregationStructure;
-import org.joda.time.DateTimeZone;
 import org.springframework.util.StringUtils;
 
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,8 +64,12 @@ public enum BucketType {
             RangeAggregationBuilder builder = AggregationBuilders
                 .range(structure.getName())
                 .field(structure.getField());
-            if (structure.getMissingValue() != null) {
-                builder.missing(structure.getMissingValue());
+            if (StringUtils.hasText(structure.getFormat())) {
+                String format = structure.getFormat();
+                if (format.startsWith("yyyy")) {
+                    format = "8" + format;
+                }
+                builder.format(format);
             }
             structure.getRanges()
                 .forEach(ranges -> {
@@ -87,7 +91,11 @@ public enum BucketType {
                 .dateRange(structure.getName())
                 .field(structure.getField());
             if (StringUtils.hasText(structure.getFormat())) {
-                builder.format(structure.getFormat());
+                String format = structure.getFormat();
+                if (format.startsWith("yyyy")) {
+                    format = "8" + format;
+                }
+                builder.format(format);
             }
             structure.getRanges()
                 .forEach(ranges -> {
@@ -96,7 +104,7 @@ public enum BucketType {
             if (structure.getMissingValue() != null) {
                 builder.missing(structure.getMissingValue());
             }
-            builder.timeZone(DateTimeZone.getDefault());
+            builder.timeZone(ZoneId.systemDefault());
             commonAggregationSetting(builder, structure);
             return builder;
         }
@@ -128,7 +136,7 @@ public enum BucketType {
             if (sort != null) {
                 builder.order(mapping.get(OrderBuilder.of(sort.getOrder(), sort.getType())));
             }
-            builder.timeZone(DateTimeZone.getDefault());
+            builder.timeZone(ZoneId.systemDefault());
             commonAggregationSetting(builder, structure);
             return builder;
         }
@@ -140,7 +148,7 @@ public enum BucketType {
         }
     };
 
-    private String text;
+    private final String text;
 
     public abstract AggregationBuilder aggregationBuilder(BucketAggregationsStructure structure);
 
@@ -188,7 +196,4 @@ public enum BucketType {
         mapping.put(OrderBuilder.of("desc", OrderType.KEY), BucketOrder.key(false));
     }
 
-    public static void main(String[] args) {
-        System.out.println(mapping.get(OrderBuilder.of("desc", OrderType.KEY)).toString());
-    }
 }

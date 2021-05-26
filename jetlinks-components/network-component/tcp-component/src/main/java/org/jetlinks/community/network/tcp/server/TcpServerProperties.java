@@ -40,6 +40,9 @@ public class TcpServerProperties implements ValueObject {
 
     private boolean ssl;
 
+    //服务实例数量(线程数)
+    private int instance = Runtime.getRuntime().availableProcessors();
+
     private String certId;
 
     public SocketAddress createSocketAddress() {
@@ -50,7 +53,7 @@ public class TcpServerProperties implements ValueObject {
     }
 
     @Override
-    public Optional<Object> get(String name) {
-        return Optional.ofNullable(parserConfiguration).map(map -> map.get(name));
+    public Map<String, Object> values() {
+        return parserConfiguration;
     }
 }

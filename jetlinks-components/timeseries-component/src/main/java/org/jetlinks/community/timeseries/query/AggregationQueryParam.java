@@ -4,22 +4,27 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hswebframework.ezorm.core.dsl.Query;
 import org.hswebframework.ezorm.core.param.QueryParam;
+import org.hswebframework.web.api.crud.entity.QueryParamEntity;
+import org.jetlinks.community.Interval;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * 聚合查询参数
+ */
 @Getter
 @Setter
 public class AggregationQueryParam {
 
-    //集合列
+    //聚合列
     private List<AggregationColumn> aggColumns = new ArrayList<>();
 
     //按时间分组
+    @Deprecated
     private TimeGroup groupByTime;
 
     //按字段分组
@@ -32,11 +37,17 @@ public class AggregationQueryParam {
 
     private long endWithTime = System.currentTimeMillis();
 
+    private String timeProperty = "timestamp";
+
     //条件过滤
-    private QueryParam queryParam = new QueryParam();
+    private QueryParamEntity queryParam = new QueryParamEntity();
 
     public static AggregationQueryParam of() {
         return new AggregationQueryParam();
+    }
+
+    public <T> T as(Function<AggregationQueryParam, T> mapper) {
+        return mapper.apply(this);
     }
 
     public AggregationQueryParam from(long time) {
@@ -63,9 +74,13 @@ public class AggregationQueryParam {
         return this;
     }
 
-    public AggregationQueryParam agg(String property, String alias, Aggregation agg) {
-        aggColumns.add(new AggregationColumn(property, alias, agg));
+    public AggregationQueryParam agg(AggregationColumn agg) {
+        aggColumns.add(agg);
         return this;
+    }
+
+    public AggregationQueryParam agg(String property, String alias, Aggregation agg) {
+        return this.agg(new AggregationColumn(property, alias, agg));
     }
 
 
@@ -113,11 +128,11 @@ public class AggregationQueryParam {
         return agg(property, Aggregation.MIN);
     }
 
-    public AggregationQueryParam groupBy(Duration time, String alias, String format) {
+    public AggregationQueryParam groupBy(Interval time, String alias, String format) {
         return groupBy(new TimeGroup(time, alias, format));
     }
 
-    public AggregationQueryParam groupBy(Duration time, String format) {
+    public AggregationQueryParam groupBy(Interval time, String format) {
         return groupBy(time, "time", format);
     }
 
@@ -135,12 +150,21 @@ public class AggregationQueryParam {
         return groupBy(new Group(property, alias));
     }
 
+    public AggregationQueryParam groupBy(String property) {
+        return groupBy(new Group(property, property));
+    }
+
     public <T> T execute(Function<AggregationQueryParam, T> executor) {
         return executor.apply(this);
     }
 
     public AggregationQueryParam filter(Consumer<Query<?, QueryParam>> consumer) {
         consumer.accept(Query.of(queryParam));
+        return this;
+    }
+
+    public AggregationQueryParam filter(QueryParamEntity queryParam) {
+        this.queryParam = queryParam;
         return this;
     }
 

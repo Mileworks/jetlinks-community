@@ -1,5 +1,6 @@
 package org.jetlinks.community.gateway.annotation;
 
+import org.jetlinks.core.event.Subscription;
 import org.springframework.core.annotation.AliasFor;
 
 import java.lang.annotation.*;
@@ -23,6 +24,8 @@ public @interface Subscribe {
     @AliasFor("topics")
     String[] value() default {};
 
-    boolean shareCluster() default false;
+    String id() default "";
+
+    Subscription.Feature[] features() default Subscription.Feature.local;
 
 }

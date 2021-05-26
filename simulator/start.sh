@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-java -jar device-simulator.jar \
+java -jar -Dfile.encoding=UTF-8 device-simulator.jar \
   mqtt.limit=1 \
   mqtt.start=0 \
   mqtt.enableEvent=true \
@@ -9,3 +9,5 @@ java -jar device-simulator.jar \
   mqtt.scriptFile=./scripts/demo-device.js \
   mqtt.address=127.0.0.1 \
   mqtt.port=1883
+
+
